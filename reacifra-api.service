@@ -1,0 +1,12 @@
+[Unit]
+Description = ReaCifra Api v0.1
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+ExecStart = /home/projects/reacifra-api/cmd/api/server -p 8082
+WorkingDirectory= /home/projects/reacifra-api
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy = multi-user.target

@@ -2,6 +2,7 @@ package main
 
 import (
 	"cifra-api/configs"
+	"cifra-api/pkg/app"
 	"cifra-api/pkg/app/api/middlewares"
 	"cifra-api/pkg/app/api/protocol"
 	"cifra-api/pkg/app/api/requests"
@@ -10,56 +11,76 @@ import (
 	"cifra-api/pkg/domain/_errors"
 	"cifra-api/pkg/domain/actions"
 	"errors"
+	"flag"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 )
 
 func main() {
+	portPtr := flag.String("p", "8082", "Port number")
+	flag.Parse()
+
+	if portPtr == nil {
+		_port := viper.GetString("app.port")
+		portPtr = &_port
+	}
+
 	configs.LoadConfigFile()
 	db := configs.LoadDatabases()
 
-	musicaDatabase := database.NewMusicaDataBase(db)
+	cifraDatabase := database.NewCifraDataBase(db)
 	transporteDatabase := database.NewTransporteDataBaseMemory()
 
-	newMusicaAction := actions.NewNewMusicaAction(musicaDatabase)
-	getMusicasAction := actions.NewGetMusicasAction(musicaDatabase)
-	getMusicaAction := actions.NewGetMusicaAction(musicaDatabase)
+	newCifraAction := actions.NewAddCifraAction(cifraDatabase)
+	getCifrasAction := actions.NewGetCifrasAction(cifraDatabase)
+	getCifraAction := actions.NewGetCifraAction(cifraDatabase)
 	setTransporteAction := actions.NewSetTransporteAction(transporteDatabase)
 	getTransporteAction := actions.NewGetTransporteAction(transporteDatabase)
-	updateMusicaAction := actions.NewUpdateMusicaAction(musicaDatabase)
+	updateCifraAction := actions.NewUpdateCifraAction(cifraDatabase)
 
 	engine := gin.Default()
 	engine.Use(middlewares.CorsMiddleware())
 
-	engine.POST("/musicas", func(c *gin.Context) {
-		musicaRequest := &requests.MusicaRequest{}
-		if err := c.ShouldBindJSON(musicaRequest); err != nil {
+	engine.GET("/cifras/import", func(ctx *gin.Context) {
+		pageweb := app.NewPageWeb()
+		pageweb.Load(ctx.Query("url"))
+		html := pageweb.ExtractHtmlByTagName("pre")
+
+		ctx.JSON(http.StatusOK, protocol.StatusOk(gin.H{
+			"texto": html,
+		}))
+	})
+
+	engine.POST("/cifras", func(c *gin.Context) {
+		cifraRequest := &requests.CifraRequest{}
+		if err := c.ShouldBindJSON(cifraRequest); err != nil {
 			c.AbortWithStatus(http.StatusBadRequest)
 			return
 		}
 
-		musica, err := newMusicaAction.Execute(musicaRequest.ToEntity())
+		cifra, err := newCifraAction.Execute(cifraRequest.ToEntity())
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToMusicaResponse(musica)))
+		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToCifraResponse(cifra)))
 	})
 
-	engine.GET("/musicas", func(c *gin.Context) {
-		musicas, err := getMusicasAction.Execute()
+	engine.GET("/cifras", func(c *gin.Context) {
+		cifras, err := getCifrasAction.Execute()
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToMusicasResponse(musicas)))
+		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToCifrasResponse(cifras)))
 	})
 
-	engine.GET("/musicas/:id", func(c *gin.Context) {
+	engine.GET("/cifras/:id", func(c *gin.Context) {
 		idStr := c.Params.ByName("id")
 		id, err := strconv.Atoi(idStr)
 
@@ -68,9 +89,9 @@ func main() {
 			return
 		}
 
-		musica, err := getMusicaAction.Execute(uint(id))
+		cifra, err := getCifraAction.Execute(uint(id))
 		if err != nil {
-			if errors.Is(err, _errors.NewMusicaNaoEncontradaError()) {
+			if errors.Is(err, _errors.NewCifraNaoEncontradaError()) {
 				c.AbortWithError(http.StatusNotFound, err)
 				return
 			}
@@ -78,16 +99,16 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToMusicaResponse(musica)))
+		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToCifraResponse(cifra)))
 	})
 
-	engine.PUT("/musicas", func(c *gin.Context) {
-		musica := &requests.MusicaRequest{}
-		if err := c.BindJSON(musica); err != nil {
+	engine.PUT("/cifras", func(c *gin.Context) {
+		cifra := &requests.CifraRequest{}
+		if err := c.BindJSON(cifra); err != nil {
 			return
 		}
 
-		err := updateMusicaAction.Execute(musica.ToEntity())
+		err := updateCifraAction.Execute(cifra.ToEntity())
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
@@ -110,5 +131,5 @@ func main() {
 		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToTransporteResponse(transporte)))
 	})
 
-	engine.Run(":8082")
+	engine.Run(":" + *portPtr)
 }

@@ -2,7 +2,7 @@ package entity
 
 type Transporte struct {
 	Id      uint
-	Musica  *Musica
+	Cifra   *Cifra
 	Posicao uint
 }
 

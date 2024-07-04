@@ -22,8 +22,8 @@ func (a *SetTransporteAction) Execute(transporte *entity.Transporte) error {
 		return err
 	}
 
-	if transporte.Musica.Id == 0 {
-		transporte.Musica = _current.Musica
+	if transporte.Cifra.Id == 0 {
+		transporte.Cifra = _current.Cifra
 	}
 
 	return a.transporteDatabase.Set(transporte)

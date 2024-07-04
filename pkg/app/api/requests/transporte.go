@@ -3,15 +3,15 @@ package requests
 import "cifra-api/pkg/domain/entity"
 
 type TransporteRequest struct {
-	Id       uint `json:"id"`
-	MusicaId uint `json:"musicaId"`
-	Posicao  uint `json:"posicao"`
+	Id      uint `json:"id"`
+	CifraId uint `json:"cifraId"`
+	Posicao uint `json:"posicao"`
 }
 
 func (r *TransporteRequest) ToEntity() *entity.Transporte {
 	transporte := entity.NewTransporte(r.Id)
 
-	transporte.Musica = entity.NewMusica(r.MusicaId)
+	transporte.Cifra = entity.NewCifra(r.CifraId)
 	transporte.Posicao = r.Posicao
 
 	return transporte
