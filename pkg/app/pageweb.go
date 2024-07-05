@@ -47,7 +47,7 @@ func (r *PageWeb) ExtractHtmlByTagName(tagname string) string {
 
 	// Seleciona todos os elementos <pre> e extrai o texto de cada um
 	r.doc.Find(tagname).Each(func(i int, s *goquery.Selection) {
-		content := s.Text()
+		content, _ := s.Html()
 		contents = append(contents, content)
 	})
 
