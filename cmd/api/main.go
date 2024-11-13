@@ -10,6 +10,7 @@ import (
 	"cifra-api/pkg/app/responses"
 	"cifra-api/pkg/domain/_errors"
 	"cifra-api/pkg/domain/actions"
+	"cifra-api/pkg/domain/entity"
 	"errors"
 	"flag"
 	"net/http"
@@ -32,6 +33,7 @@ func main() {
 	db := configs.LoadDatabases()
 
 	cifraDatabase := database.NewCifraDataBase(db)
+	queueDatabase := database.NewQueueDataBase(db)
 	transporteDatabase := database.NewTransporteDataBaseMemory()
 
 	newCifraAction := actions.NewAddCifraAction(cifraDatabase)
@@ -40,6 +42,9 @@ func main() {
 	setTransporteAction := actions.NewSetTransporteAction(transporteDatabase)
 	getTransporteAction := actions.NewGetTransporteAction(transporteDatabase)
 	updateCifraAction := actions.NewUpdateCifraAction(cifraDatabase)
+	getQueueAction := actions.NewGetQueueAction(queueDatabase)
+	addQueueAction := actions.NewAddQueueAction(queueDatabase)
+	removeQueueAction := actions.NewRemoveQueueAction(queueDatabase)
 
 	engine := gin.Default()
 	engine.Use(middlewares.CorsMiddleware())
@@ -129,6 +134,53 @@ func main() {
 	engine.GET("/transportes", func(c *gin.Context) {
 		transporte, _ := getTransporteAction.Execute()
 		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToTransporteResponse(transporte)))
+	})
+
+	engine.GET("/anime", func(c *gin.Context) {
+		transporte := entity.NewTransporte(1)
+		transporte.Cifra = entity.NewCifra(100)
+
+		setTransporteAction.Execute(transporte)
+	})
+
+	engine.GET("/queue", func(c *gin.Context) {
+		queue, err := getQueueAction.Execute()
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		c.JSON(http.StatusOK, protocol.StatusOk(responses.ConvertToQueueResponse(queue)))
+	})
+
+	engine.POST("/queue", func(c *gin.Context) {
+		cifra := &requests.CifraRequest{}
+		if err := c.BindJSON(cifra); err != nil {
+			return
+		}
+
+		err := addQueueAction.Execute(cifra.ToEntity())
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		c.JSON(http.StatusNoContent, nil)
+	})
+
+	engine.DELETE("/queue", func(c *gin.Context) {
+		cifra := &requests.CifraRequest{}
+		if err := c.BindJSON(cifra); err != nil {
+			return
+		}
+
+		err := removeQueueAction.Execute(cifra.ToEntity())
+		if err != nil {
+			c.AbortWithError(http.StatusInternalServerError, err)
+			return
+		}
+
+		c.JSON(http.StatusNoContent, nil)
 	})
 
 	engine.Run(":" + *portPtr)
